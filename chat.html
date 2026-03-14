@@ -707,7 +707,7 @@ function formatTime(dateStr) {
 
 async function loadMessages() {
     try {
-        const res = await fetch('api_messages.php');
+        const res = await fetch('back-end/api_messages.php');
         const data = await res.json();
 
         messagesContainer.innerHTML = '';
@@ -777,7 +777,7 @@ form.addEventListener('submit', async (e) => {
     formData.append('name', currentUserName);
     formData.append('message', message);
 
-    await fetch('api_send.php', { method: 'POST', body: formData });
+    await fetch('back-end/api_send.php', { method: 'POST', body: formData });
 
     messageInput.value = '';
     messageInput.focus();
