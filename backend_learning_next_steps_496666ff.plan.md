@@ -19,7 +19,7 @@ todos:
     status: pending
   - id: feature-edit-delete
     content: Implement Edit/Delete messages with authorization (only owner can edit/delete) and extend APIs accordingly.
-    status: pending
+    status: completed
   - id: api-hardening
     content: Standardize API response shapes/status codes and review a basic security checklist (input validation, auth boundaries, SQL safety).
     status: pending

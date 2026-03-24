@@ -55,7 +55,7 @@ if (!mysqli_fetch_assoc($resAuth)) {
     json_response(['error' => 'Forbidden'], 403);
 }
 
-$sql = "SELECT name, message, created_at
+$sql = "SELECT id, user_id, name, message, created_at
         FROM messages
         WHERE conversation_id = $conversationId
         ORDER BY created_at ASC";
@@ -65,7 +65,10 @@ $result = mysqli_query($conn, $sql);
 $messages = [];
 
 while ($row = mysqli_fetch_assoc($result)) {
+    $uid = $row['user_id'];
     $messages[] = [
+        'id'         => (int) $row['id'],
+        'user_id'    => $uid === null ? null : (int) $uid,
         'name'       => $row['name'],
         'message'    => $row['message'],
         'created_at' => $row['created_at'],

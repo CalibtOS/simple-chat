@@ -8,6 +8,7 @@ $user = getCurrentUser();
 if ($user) {
     json_response([
         'loggedIn' => true,
+        'id'       => (int) $user['id'],
         'name'     => $user['name'],
         'email'    => $user['email'],
     ]);
