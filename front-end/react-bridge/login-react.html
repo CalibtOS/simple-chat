@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React Bridge - Login</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #0b1216; color: #e4eef4; margin: 0; }
+        .wrap { max-width: 440px; margin: 64px auto; padding: 24px; border: 1px solid #2b3a44; border-radius: 10px; }
+        input, button { width: 100%; padding: 10px; margin-top: 10px; border-radius: 6px; border: 1px solid #2b3a44; }
+        button { background: #0075b7; color: #fff; cursor: pointer; }
+        .hint { color: #9bb0bf; font-size: 14px; margin-top: 12px; }
+    </style>
+</head>
+<body>
+<div id="app"></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script>
+const e = React.createElement;
+
+function LoginBridge() {
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [status, setStatus] = React.useState('');
+
+  async function onSubmit(ev) {
+    ev.preventDefault();
+    setStatus('Sending...');
+    const fd = new FormData();
+    fd.append('email', email);
+    fd.append('password', password);
+    const res = await fetch('../../auth/login', { method: 'POST', body: fd, credentials: 'same-origin', redirect: 'follow' });
+    setStatus(res.ok ? 'Submitted. If credentials are valid, session is set.' : 'Login request failed.');
+  }
+
+  return e('div', { className: 'wrap' },
+    e('h2', null, 'React Bridge: Login'),
+    e('form', { onSubmit },
+      e('input', { type: 'email', placeholder: 'Email', value: email, onChange: ev => setEmail(ev.target.value), required: true }),
+      e('input', { type: 'password', placeholder: 'Password', value: password, onChange: ev => setPassword(ev.target.value), required: true }),
+      e('button', { type: 'submit' }, 'Submit')
+    ),
+    e('p', { className: 'hint' }, 'This is a bridge exercise: React UI calling the same vanilla backend routes.'),
+    e('p', { className: 'hint' }, status)
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(e(LoginBridge));
+</script>
+</body>
+</html>
+

@@ -1,0 +1,6 @@
+# Security: deny direct HTTP access to backend handler PHP files.
+# The app still works because `back-end/index.php` includes these files server-side.
+<FilesMatch "^(?!index\.php$).+\.php$">
+    Require all denied
+</FilesMatch>
+

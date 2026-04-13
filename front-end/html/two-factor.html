@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Two-factor authentication – Chatty</title>
+    <link rel="stylesheet" href="../css/auth.css">
+</head>
+<body>
+    <div class="box">
+        <h1>Two-factor auth</h1>
+        <p style="color:rgba(228,238,244,0.65);font-size:.9rem;margin-bottom:16px;">
+            Enter the 6-digit code from your authenticator app.
+        </p>
+        <p class="error"  id="errorBox"></p>
+        <form id="twoFaForm">
+            <label for="code">Authentication code</label>
+            <input type="text" id="code" name="code"
+                   inputmode="numeric" pattern="\d{6}" maxlength="6"
+                   autocomplete="one-time-code" required
+                   placeholder="000000">
+            <button type="submit" id="submitBtn">Verify</button>
+        </form>
+        <p class="links"><a href="login.html">Back to log in</a></p>
+    </div>
+    <script src="../js/two-factor.js"></script>
+</body>
+</html>

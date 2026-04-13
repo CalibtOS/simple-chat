@@ -1,15 +1,34 @@
-const messagesContainer = document.getElementById('chatMessages');
-const form = document.getElementById('chatForm');
-const messageInput = document.getElementById('messageInput');
-const conversationItems = document.getElementById('conversationItems');
-const activeBotName = document.getElementById('activeBotName');
+import { API, fetchJson } from './api-client.js';
+import { formatTime, shortenMessage } from './chat-utils.js';
 
-let currentUserName = localStorage.getItem('chatty_name') || 'Anonymous';
-let currentUserId = null;
+const messagesContainer = document.getElementById('chatMessages');
+const form              = document.getElementById('chatForm');
+const messageInput      = document.getElementById('messageInput');
+const conversationItems = document.getElementById('conversationItems');
+const activeBotName     = document.getElementById('activeBotName');
+const chatHeader        = document.getElementById('chatHeader');
+const chatEmptyState    = document.getElementById('chatEmptyState');
+
+let currentUserName     = localStorage.getItem('chatty_name') || 'Anonymous';
+let currentUserId       = null;
 let activeConversationId = 0;
 
 /** When true, periodic polling skips refresh so an open edit UI is not wiped. */
 let suppressMessagePoll = false;
+
+// ─── Show / hide the chat UI based on whether a conversation is open ─────────
+//
+// When no conversation is selected we hide the header, messages, and composer
+// and show a centred placeholder instead.
+
+function setChatActive(active) {
+    chatEmptyState.classList.toggle('chat-ui-hidden', active);
+    chatHeader.classList.toggle('chat-ui-hidden', !active);
+    messagesContainer.classList.toggle('chat-ui-hidden', !active);
+    form.classList.toggle('chat-ui-hidden', !active);
+}
+
+// ─── Close all open message menus ────────────────────────────────────────────
 
 function closeAllMessageMenus() {
     document.querySelectorAll('.message-menu-dropdown.is-open').forEach((dd) => {
@@ -21,10 +40,11 @@ function closeAllMessageMenus() {
     });
 }
 
+// ─── Load current user from /api/me ──────────────────────────────────────────
+
 async function initUser() {
     try {
-        const res = await fetch('../../back-end/apis/api_me.php');
-        const data = await res.json();
+        const { data } = await fetchJson(API.me);
         if (data.loggedIn && data.name) {
             currentUserName = data.name;
             if (data.id != null) currentUserId = Number(data.id);
@@ -38,29 +58,27 @@ async function initUser() {
     }
 }
 
-function escapeHtml(str) {
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
+// ─── Render user list in sidebar ─────────────────────────────────────────────
+//
+// Each item shows the other user's name + last message preview (if any DM
+// exists).  Clicking opens the existing conversation or creates a new one.
 
-function formatTime(dateStr) {
-    const d = new Date(dateStr);
-    const h = d.getHours();
-    const m = d.getMinutes();
-    const ampm = h >= 12 ? 'pm' : 'am';
-    return (h % 12 || 12) + ':' + String(m).padStart(2, '0') + ampm;
-}
-
-function renderConversations(conversations) {
+function renderUsers(users) {
     if (!conversationItems) return;
     conversationItems.innerHTML = '';
 
-    conversations.forEach((c) => {
+    if (users.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'conv-empty';
+        empty.textContent = 'No other users yet.';
+        conversationItems.appendChild(empty);
+        return;
+    }
+
+    users.forEach((u) => {
         const item = document.createElement('div');
-        item.className = 'conv-item' + (c.id === activeConversationId ? ' active' : '');
-        item.dataset.conversationId = String(c.id);
+        item.className = 'conv-item' + (u.conversation_id === activeConversationId && activeConversationId !== 0 ? ' active' : '');
+        item.dataset.userId = String(u.id);
 
         const img = document.createElement('img');
         img.className = 'conv-avatar';
@@ -74,22 +92,27 @@ function renderConversations(conversations) {
 
         const name = document.createElement('div');
         name.className = 'conv-name';
-        name.textContent = c.bot?.name || c.title || 'Conversation';
+        name.textContent = u.name;
 
         const preview = document.createElement('div');
         preview.className = 'conv-preview';
-        preview.textContent = c.last_message
-            ? (c.last_message.length > 40 ? c.last_message.slice(0, 37) + '...' : c.last_message)
+        preview.textContent = u.last_message
+            ? shortenMessage(u.last_message)
             : 'No messages yet';
-        preview.dataset.previewFor = String(c.id);
+        // Keep a reference so we can update the preview after sending.
+        if (u.conversation_id) {
+            preview.dataset.previewFor = String(u.conversation_id);
+        }
 
         content.appendChild(name);
         content.appendChild(preview);
 
         const time = document.createElement('div');
         time.className = 'conv-time';
-        time.textContent = c.last_message_at ? formatTime(c.last_message_at) : '-';
-        time.dataset.timeFor = String(c.id);
+        time.textContent = u.last_message_at ? formatTime(u.last_message_at) : '';
+        if (u.conversation_id) {
+            time.dataset.timeFor = String(u.conversation_id);
+        }
 
         item.appendChild(img);
         item.appendChild(content);
@@ -97,9 +120,30 @@ function renderConversations(conversations) {
 
         item.addEventListener('click', async () => {
             suppressMessagePoll = false;
-            activeConversationId = c.id;
-            if (activeBotName) activeBotName.textContent = c.bot?.name || 'Chat';
-            renderConversations(conversations);
+
+            // If a DM already exists, open it directly.
+            // If not, ask the server to create one.
+            let convId = u.conversation_id;
+            if (!convId) {
+                const { res, data } = await fetchJson(API.conversations, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ user_id: u.id }),
+                });
+                if (!res.ok) return;
+                convId = data.conversation_id;
+                // Store so subsequent clicks skip the POST.
+                u.conversation_id = convId;
+                preview.dataset.previewFor = String(convId);
+                time.dataset.timeFor       = String(convId);
+            }
+
+            activeConversationId = convId;
+            if (activeBotName) activeBotName.textContent = u.name;
+            setChatActive(true);
+
+            // Re-render to move the active highlight.
+            renderUsers(users);
             await loadMessages(activeConversationId);
         });
 
@@ -107,29 +151,35 @@ function renderConversations(conversations) {
     });
 }
 
-async function loadConversations() {
-    const res = await fetch('../../back-end/apis/api_conversations.php');
-    const data = await res.json();
+// ─── Fetch user list ─────────────────────────────────────────────────────────
+
+async function loadUsers() {
+    const { res, data } = await fetchJson(API.users);
     if (!res.ok) {
         if (res.status === 401) window.location.href = '../html/login.html';
-        return [];
+        return;
     }
     const list = Array.isArray(data) ? data : [];
-    if (list.length > 0 && activeConversationId === 0) {
-        activeConversationId = list[0].id;
-        if (activeBotName) activeBotName.textContent = list[0]?.bot?.name || 'Chat';
+
+    // Auto-open the first conversation that already has messages.
+    const firstActive = list.find(u => u.conversation_id);
+    if (firstActive && activeConversationId === 0) {
+        activeConversationId = firstActive.conversation_id;
+        if (activeBotName) activeBotName.textContent = firstActive.name;
+        setChatActive(true);
     }
-    renderConversations(list);
+
+    renderUsers(list);
     return list;
 }
 
+// ─── Load messages for a conversation ────────────────────────────────────────
+
 async function loadMessages(conversationId = activeConversationId) {
     try {
-        const url = new URL('../../back-end/apis/api_messages.php', window.location.href);
+        const url = new URL(API.messages, window.location.href);
         if (conversationId) url.searchParams.set('conversation_id', String(conversationId));
-
-        const res = await fetch(url.toString());
-        const data = await res.json();
+        const { res, data } = await fetchJson(url.toString());
 
         if (!res.ok) {
             if (res.status === 401) window.location.href = '../html/login.html';
@@ -142,9 +192,9 @@ async function loadMessages(conversationId = activeConversationId) {
         let lastMsg = null;
         list.forEach(msg => {
             lastMsg = msg;
-            const uid = msg.user_id != null ? Number(msg.user_id) : null;
-            const isOwn =
-                currentUserId != null && uid != null && uid === currentUserId;
+            const uid   = msg.user_id != null ? Number(msg.user_id) : null;
+            const isOwn = currentUserId != null && uid != null && uid === currentUserId;
+
             const row = document.createElement('div');
             row.className = 'message ' + (isOwn ? 'outgoing' : 'incoming');
             row.dataset.messageId = msg.id != null ? String(msg.id) : '';
@@ -258,34 +308,18 @@ async function loadMessages(conversationId = activeConversationId) {
                     saveBtn.addEventListener('click', async () => {
                         const text = ta.value.trim();
                         if (!text) return;
-                        const fd = new FormData();
-                        fd.append('message_id', String(msg.id));
-                        fd.append('message', text);
-                        const res = await fetch('../../back-end/apis/api_message_edit.php', {
-                            method: 'POST',
-                            body: fd,
-                            credentials: 'same-origin',
+                        const { res, data } = await fetchJson(API.message(msg.id), {
+                            method:  'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body:    JSON.stringify({ message: text }),
                         });
-                        if (res.status === 401) {
-                            window.location.href = '../html/login.html';
-                            return;
-                        }
-                        if (!res.ok) {
-                            let err = 'Could not save';
-                            try {
-                                const j = await res.json();
-                                if (j.error) err = j.error;
-                            } catch (err) { /* ignore */ }
-                            alert(err);
-                            return;
-                        }
+                        if (res.status === 401) { window.location.href = '../html/login.html'; return; }
+                        if (!res.ok) { alert(data?.error ?? 'Could not save'); return; }
                         suppressMessagePoll = false;
                         await loadMessages(conversationId);
                     });
 
-                    cancelBtn.addEventListener('click', () => {
-                        restoreBubble();
-                    });
+                    cancelBtn.addEventListener('click', restoreBubble);
 
                     btnRow.appendChild(saveBtn);
                     btnRow.appendChild(cancelBtn);
@@ -301,26 +335,9 @@ async function loadMessages(conversationId = activeConversationId) {
                     e.stopPropagation();
                     closeAllMessageMenus();
                     if (!confirm('Delete this message?')) return;
-                    const fd = new FormData();
-                    fd.append('message_id', String(msg.id));
-                    const res = await fetch('../../back-end/apis/api_message_delete.php', {
-                        method: 'POST',
-                        body: fd,
-                        credentials: 'same-origin',
-                    });
-                    if (res.status === 401) {
-                        window.location.href = '../html/login.html';
-                        return;
-                    }
-                    if (!res.ok) {
-                        let err = 'Could not delete';
-                        try {
-                            const j = await res.json();
-                            if (j.error) err = j.error;
-                        } catch (err) { /* ignore */ }
-                        alert(err);
-                        return;
-                    }
+                    const { res, data } = await fetchJson(API.message(msg.id), { method: 'DELETE' });
+                    if (res.status === 401) { window.location.href = '../html/login.html'; return; }
+                    if (!res.ok) { alert(data?.error ?? 'Could not delete'); return; }
                     suppressMessagePoll = false;
                     await loadMessages(conversationId);
                 });
@@ -340,11 +357,12 @@ async function loadMessages(conversationId = activeConversationId) {
             messagesContainer.appendChild(row);
         });
 
+        // Update the sidebar preview text for the active conversation.
         if (lastMsg && conversationId) {
             const previewEl = document.querySelector(`[data-preview-for="${conversationId}"]`);
-            const timeEl = document.querySelector(`[data-time-for="${conversationId}"]`);
-            if (previewEl) previewEl.textContent = lastMsg.message.length > 40 ? lastMsg.message.slice(0, 37) + '...' : lastMsg.message;
-            if (timeEl) timeEl.textContent = formatTime(lastMsg.created_at);
+            const timeEl    = document.querySelector(`[data-time-for="${conversationId}"]`);
+            if (previewEl) previewEl.textContent = shortenMessage(lastMsg.message);
+            if (timeEl)    timeEl.textContent    = formatTime(lastMsg.created_at);
         }
 
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
@@ -352,6 +370,8 @@ async function loadMessages(conversationId = activeConversationId) {
         console.error('Failed to load messages:', e);
     }
 }
+
+// ─── Send a message ───────────────────────────────────────────────────────────
 
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -363,7 +383,7 @@ form.addEventListener('submit', async (e) => {
     formData.append('message', message);
     if (activeConversationId) formData.append('conversation_id', String(activeConversationId));
 
-    const sendRes = await fetch('../../back-end/apis/api_send.php', { method: 'POST', body: formData });
+    const { res: sendRes } = await fetchJson(API.send, { method: 'POST', body: formData });
     if (sendRes.status === 401) {
         window.location.href = '../html/login.html';
         return;
@@ -375,25 +395,34 @@ form.addEventListener('submit', async (e) => {
     await loadMessages(activeConversationId);
 });
 
+// ─── Polling ──────────────────────────────────────────────────────────────────
+
 function pollMessagesIfIdle() {
     if (suppressMessagePoll) return;
+    if (activeConversationId === 0) return;   // no conversation open — nothing to poll
     loadMessages(activeConversationId);
 }
 
+// ─── Close menus on outside click / Escape ───────────────────────────────────
+
 document.addEventListener('click', (e) => {
-    if (!e.target.closest('.message-bubble-wrap')) {
-        closeAllMessageMenus();
-    }
+    if (!e.target.closest('.message-bubble-wrap')) closeAllMessageMenus();
 });
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeAllMessageMenus();
 });
 
+// ─── Bootstrap ───────────────────────────────────────────────────────────────
+
 (async function init() {
+    setChatActive(false);           // start hidden — no conversation selected yet
     await initUser();
-    await loadConversations();
-    await loadMessages(activeConversationId);
+    await loadUsers();
+    if (activeConversationId !== 0) {
+        await loadMessages(activeConversationId);
+    }
     setInterval(pollMessagesIfIdle, 5000);
 })();
+
 

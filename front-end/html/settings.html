@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Settings · Chatty</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Playfair+Display:wght@900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="../css/chat.css">
+    <link rel="stylesheet" href="../css/settings.css">
+</head>
+<body>
+<div class="chat-page">
+
+    <!-- ── Sidebar (identical structure to chat.html) ── -->
+    <aside class="sidebar">
+        <div class="logo">Chatty</div>
+        <nav class="nav">
+            <a class="nav-item" href="chat.html">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                <span>Messages</span>
+            </a>
+            <a class="nav-item active" href="settings.html">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                <span>Settings</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <img class="user-avatar" src="../../assets/avatar.png" alt="" width="48" height="48">
+            <div class="user-info">
+                <div class="user-name" id="sidebarUserName">You</div>
+                <div class="user-role" id="sidebarUserRole">user@example.com</div>
+                <a href="../../auth/logout" class="sidebar-logout">Log out</a>
+            </div>
+        </div>
+    </aside>
+
+    <div class="content-area">
+
+        <!-- ── Top bar (identical to chat.html) ── -->
+        <header class="top-bar">
+            <div class="top-bar-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" placeholder="Search" autocomplete="off">
+            </div>
+            <div class="top-bar-actions">
+                <button type="button" class="top-bar-btn" title="Brightness" aria-label="Toggle theme">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                </button>
+                <button type="button" class="top-bar-btn" title="Notifications" aria-label="Notifications">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="main-row">
+            <main class="settings-main">
+
+                <h1 class="settings-title">Settings</h1>
+
+                <!-- ── Profile card: avatar left, fields right ── -->
+                <div class="settings-card">
+                    <h2 class="settings-section-label">Profile</h2>
+
+                    <div class="settings-profile-row">
+
+                        <!-- Avatar with edit overlay -->
+                        <div class="settings-avatar-block">
+                            <div class="settings-avatar-wrap">
+                                <img id="avatarPreview" class="settings-avatar-img" src="../../assets/avatar.png" alt="Profile picture">
+                                <label class="settings-avatar-edit" for="avatarInput" title="Change photo" aria-label="Change profile photo">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                                </label>
+                                <input type="file" id="avatarInput" accept="image/*" class="settings-avatar-input">
+                            </div>
+                            <p class="settings-avatar-hint">Click the camera to update your photo</p>
+                        </div>
+
+                        <!-- Name + email fields -->
+                        <form id="settingsForm" class="settings-form" novalidate>
+                            <div id="settingsAlert" class="settings-alert" hidden></div>
+
+                            <div class="settings-field">
+                                <label for="settingsName">Display name</label>
+                                <input type="text" id="settingsName" name="name" autocomplete="name" required>
+                            </div>
+
+                            <div class="settings-field">
+                                <label for="settingsEmail">Email address</label>
+                                <input type="email" id="settingsEmail" name="email" autocomplete="email" required>
+                            </div>
+
+                            <div class="settings-actions">
+                                <button type="submit" class="settings-btn-save" id="saveBtn">Save changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- ── 2FA card ── -->
+                <div class="settings-card" style="margin-top:24px;" id="twoFaCard">
+                    <h2 class="settings-section-label">Two-factor authentication</h2>
+
+                    <!-- Alert lives outside all state divs so it shows regardless of which state is active -->
+                    <div id="twoFaAlert" class="settings-alert" hidden></div>
+
+                    <!-- State A: 2FA is OFF -->
+                    <div id="twoFaOff">
+                        <p class="settings-2fa-desc">
+                            Add an extra layer of security. After enabling, every login will require
+                            a 6-digit code from your authenticator app (e.g. Google Authenticator).
+                        </p>
+                        <button type="button" class="settings-btn-save" id="setup2faBtn">Set up 2FA</button>
+                    </div>
+
+                    <!-- State B: setup in progress — show QR + verify form -->
+                    <div id="twoFaSetup" hidden>
+                        <p class="settings-2fa-desc">
+                            Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.):
+                        </p>
+                        <div class="settings-2fa-qr-wrap">
+                            <img id="twoFaQr" class="settings-2fa-qr" src="" alt="2FA QR Code" width="180" height="180">
+                        </div>
+                        <p class="settings-2fa-desc" style="margin-top:16px;">
+                            Then enter the 6-digit code your app shows to confirm setup:
+                        </p>
+                        <form id="twoFaEnableForm" class="settings-form" style="max-width:240px;">
+                            <div class="settings-field">
+                                <label for="twoFaCode">Authentication code</label>
+                                <input type="text" id="twoFaCode" inputmode="numeric"
+                                       pattern="\d{6}" maxlength="6"
+                                       autocomplete="one-time-code" placeholder="000000" required>
+                            </div>
+                            <div class="settings-actions">
+                                <button type="submit" class="settings-btn-save" id="enable2faBtn">Enable 2FA</button>
+                                <button type="button" class="settings-btn-cancel" id="cancel2faBtn">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- State C: 2FA is ON -->
+                    <div id="twoFaOn" hidden>
+                        <p class="settings-2fa-desc settings-2fa-active">
+                            ✓ Two-factor authentication is active.
+                        </p>
+                        <button type="button" class="settings-btn-danger" id="disable2faBtn">Disable 2FA</button>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="../js/settings.js"></script>
+</body>
+</html>

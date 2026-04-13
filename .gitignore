@@ -1,1 +1,5 @@
-# hello
+# Local machine config/secrets
+back-end/config.local.php
+
+# Runtime logs
+storage/logs/

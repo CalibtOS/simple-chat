@@ -1,0 +1,16 @@
+RewriteEngine On
+
+# 1) Let static assets be served directly (avoid sending them through index.php)
+RewriteCond %{REQUEST_URI} \.(css|js|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|eot)$ [NC]
+RewriteRule ^ - [L]
+
+# 2) Route all PHP requests (except this back-end/index.php itself) through the single entrypoint.
+RewriteCond %{REQUEST_URI} \.php$ [NC]
+RewriteCond %{REQUEST_URI} !/back-end/index\.php$ [NC]
+RewriteRule ^ back-end/index.php [L,QSA]
+
+# 3) For SPA-ish / unknown paths, route to index.php (but only when the path doesn't exist as a file/dir).
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ back-end/index.php [L,QSA]
+
