@@ -113,6 +113,8 @@ body {
     display: block;
 }
 
+.avatar-online[hidden] { display: none; }
+
 .avatar-36 .avatar-online { width: 8px; height: 8px; border-radius: 5px; }
 
 .user-info {
@@ -129,6 +131,9 @@ body {
 .user-role {
     font-size: 14px;
     color: rgba(228, 238, 244, 0.65);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .sidebar-logout {
@@ -310,12 +315,20 @@ body {
     background: rgba(31, 152, 221, 0.08);
 }
 
+/* Wrapper so the online dot can be positioned over the corner of the avatar */
+.conv-avatar-wrap {
+    position: relative;
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+}
+
 .conv-avatar {
     width: 42px;
     height: 42px;
     border-radius: 200px;
     object-fit: cover;
-    flex-shrink: 0;
+    display: block;
 }
 
 .conv-content {
@@ -389,6 +402,12 @@ body {
 .chat-header-status {
     font-size: 14px;
     color: rgba(228, 238, 244, 0.65);
+    transition: color 0.3s;
+}
+
+/* Green when the other person is currently online */
+.chat-header-status[data-online="1"] {
+    color: #12b76a;
 }
 
 .chat-messages {
@@ -422,6 +441,31 @@ body {
 .chat-messages::-webkit-scrollbar-button {
     display: none;
     height: 0;
+}
+
+/* ── Load-more spinner (top of message list) ───────────────────────────────── */
+
+@keyframes chatty-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes chatty-fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.load-more-spinner {
+    align-self: center;
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 3px solid rgba(228, 238, 244, 0.12);
+    border-top-color: #1f98dd;
+    margin: 10px 0 6px;
+    animation:
+        chatty-spin    0.65s linear     infinite,
+        chatty-fadein  0.2s  ease-out   both;
 }
 
 .message {
@@ -667,6 +711,20 @@ body {
     text-align: right;
 }
 
+/* ── Read-receipt ticks (outgoing messages only) ───────────────────────────── */
+
+.message-ticks {
+    display: inline-flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.35);   /* dim — sent but not yet read */
+    transition: color 0.3s;
+}
+
+/* Turns bright blue once the other person has opened the conversation */
+.message-ticks.ticks-read {
+    color: #4fc3f7;
+}
+
 /* Empty state — shown when no conversation is selected */
 .chat-empty-state {
     flex: 1;
@@ -693,6 +751,51 @@ body {
 .chat-ui-hidden {
     display: none !important;
 }
+
+/* ── Typing indicator ──────────────────────────────────────────────────────── */
+
+@keyframes typing-bounce {
+    0%, 60%, 100% { transform: translateY(0);    opacity: 0.4; }
+    30%           { transform: translateY(-4px); opacity: 1;   }
+}
+
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 24px 14px;
+}
+
+.typing-indicator[hidden] { display: none; }
+
+/* The speech bubble that holds the dots — matches incoming message style */
+.typing-bubble {
+    background: rgba(31, 152, 221, 0.1);
+    border-radius: 18px 18px 18px 4px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+}
+
+.typing-dots {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.typing-dots span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(31, 152, 221, 0.8);
+    animation: typing-bounce 1.2s ease-in-out infinite;
+}
+
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+/* Label is kept in DOM for JS but hidden — avatar makes it obvious who's typing */
+.typing-label { display: none; }
 
 .chat-composer {
     display: flex;

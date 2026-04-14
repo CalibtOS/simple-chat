@@ -66,15 +66,27 @@
         <header class="chat-header" id="chatHeader">
             <div class="chat-header-avatar-wrap">
                 <img src="../../assets/avatar.png" alt="" width="48" height="48">
-                <span class="avatar-online"></span>
+                <span class="avatar-online" id="chatHeaderOnlineDot"></span>
             </div>
             <div class="chat-header-info">
                 <div class="chat-header-name" id="activeBotName">Ahmed</div>
-                <div class="chat-header-status">Online now</div>
+                <div class="chat-header-status" id="chatHeaderStatus">Online</div>
             </div>
         </header>
 
         <div class="chat-messages" id="chatMessages"></div>
+
+        <div class="typing-indicator" id="typingIndicator" hidden>
+            <div class="message-avatar-wrap avatar-36">
+                <img class="message-avatar" src="../../assets/avatar.png" alt="" width="36" height="36">
+            </div>
+            <div class="typing-bubble">
+                <span class="typing-dots">
+                    <span></span><span></span><span></span>
+                </span>
+            </div>
+            <span class="typing-label" id="typingLabel"></span>
+        </div>
 
         <form class="chat-composer" id="chatForm">
             <div class="composer-input-wrap">

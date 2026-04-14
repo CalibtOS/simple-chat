@@ -26,6 +26,8 @@ export const API = {
     twoFaVerify:  `${_base}/api/auth/2fa-verify`,
     // PATCH /api/messages/{id}  and  DELETE /api/messages/{id}
     message: (id) => `${_base}/api/messages/${id}`,
+    // Typing indicators
+    typing: `${_base}/api/typing`,
 };
 
 export async function fetchJson(url, options = {}) {
@@ -35,7 +37,29 @@ export async function fetchJson(url, options = {}) {
     });
     let data = null;
     try {
-        data = await res.json();
+        const text = await res.text();
+        if (!text) {
+            data = null;
+        } else {
+            try {
+                data = JSON.parse(text);
+            } catch {
+                // Some local PHP setups prepend warnings/notices before JSON.
+                // Recover by extracting the first JSON object/array substring.
+                const startObj = text.indexOf('{');
+                const startArr = text.indexOf('[');
+                const starts = [startObj, startArr].filter((i) => i >= 0);
+                if (starts.length > 0) {
+                    const start = Math.min(...starts);
+                    const endObj = text.lastIndexOf('}');
+                    const endArr = text.lastIndexOf(']');
+                    const end = Math.max(endObj, endArr);
+                    if (end > start) {
+                        data = JSON.parse(text.slice(start, end + 1));
+                    }
+                }
+            }
+        }
     } catch (e) {
         data = null;
     }

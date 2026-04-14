@@ -165,13 +165,22 @@ final class ConversationRepository
         // Rewritten to avoid correlated subqueries referencing a derived table,
         // which older MySQL/MariaDB versions (XAMPP) do not support.
         // Instead we use a separate LEFT JOIN for the latest message per conversation.
+        // is_online: true when last_seen_at is within the last 60 seconds.
+        // 60 seconds matches the front-end polling interval (5 s) with plenty of
+        // headroom — an active tab updates the timestamp every 5 s, so a user
+        // will read as online as long as the app is open.
         $stmt = $this->db->prepare(
             "SELECT
                  u.id,
                  u.name,
-                 conv.id           AS conversation_id,
-                 lm.message        AS last_message,
-                 lm.created_at     AS last_message_at
+                 u.last_seen_at,
+                 CASE
+                     WHEN u.last_seen_at >= DATE_SUB(NOW(), INTERVAL 60 SECOND)
+                     THEN 1 ELSE 0
+                 END                AS is_online,
+                 conv.id            AS conversation_id,
+                 lm.message         AS last_message,
+                 lm.created_at      AS last_message_at
              FROM users u
              LEFT JOIN (
                  SELECT c.id, cm2.user_id AS other_uid
@@ -207,6 +216,8 @@ final class ConversationRepository
                 $row['conversation_id'] !== null ? (int) $row['conversation_id'] : null,
                 $row['last_message'],
                 $row['last_message_at'],
+                (bool) $row['is_online'],
+                $row['last_seen_at'],
             );
         }
         return $items;

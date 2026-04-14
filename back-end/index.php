@@ -38,6 +38,7 @@ require_once __DIR__ . '/repositories/UserRepository.php';
 require_once __DIR__ . '/repositories/BotRepository.php';
 require_once __DIR__ . '/repositories/ConversationRepository.php';
 require_once __DIR__ . '/repositories/MessageRepository.php';
+require_once __DIR__ . '/repositories/TypingRepository.php';
 
 // ─── Services ─────────────────────────────────────────────────────────────────
 require_once __DIR__ . '/services/MeService.php';
@@ -55,6 +56,7 @@ require_once __DIR__ . '/controllers/ConversationController.php';
 require_once __DIR__ . '/controllers/MessageController.php';
 require_once __DIR__ . '/controllers/SettingsController.php';
 require_once __DIR__ . '/controllers/TwoFactorController.php';
+require_once __DIR__ . '/controllers/TypingController.php';
 
 // ─── Route helpers ────────────────────────────────────────────────────────────
 
@@ -198,6 +200,10 @@ $routes = [
     ['method' => 'GET',  'pattern' => 'api/conversations',  'target' => 'ConversationController@index',  'middleware' => ['json', 'auth']],
     ['method' => 'POST', 'pattern' => 'api/conversations',  'target' => 'ConversationController@create', 'middleware' => ['json', 'auth']],
 
+    // Typing indicators
+    ['method' => 'POST', 'pattern' => 'api/typing', 'target' => 'TypingController@start', 'middleware' => ['json', 'auth']],
+    ['method' => 'GET',  'pattern' => 'api/typing', 'target' => 'TypingController@poll',  'middleware' => ['json', 'auth']],
+
     // Messages
     ['method' => 'GET',  'pattern' => 'api/messages',                     'target' => 'MessageController@index',  'middleware' => ['json', 'auth']],
     ['method' => 'GET',  'pattern' => 'api/conversations/{id}/messages',   'target' => 'MessageController@index',  'middleware' => ['json', 'auth']],
@@ -220,7 +226,7 @@ $request->routeParams = $matched['params'];
 
 $middlewareMap = [
     'json' => new JsonMiddleware(),
-    'auth' => new AuthMiddleware(),
+    'auth' => new AuthMiddleware($conn),
 ];
 
 $middlewares = [];
@@ -275,6 +281,15 @@ $destination = static function (Request $req) use ($route, $conn): void {
         case 'MessageController':
             $ctrl = new MessageController(
                 new MessageService($conn, $msgRepo, $convRepo, $botRepo),
+                $convRepo,
+                $userRepo,
+            );
+            $ctrl->$method($req);
+            break;
+
+        case 'TypingController':
+            $ctrl = new TypingController(
+                new TypingRepository($conn),
                 $convRepo,
                 $userRepo,
             );

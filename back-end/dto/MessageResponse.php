@@ -13,6 +13,7 @@ final class MessageResponse
         public readonly string  $name,
         public readonly string  $message,
         public readonly string  $createdAt,
+        public readonly ?string $readAt = null,
     ) {}
 
     /** @return array<string, mixed> */
@@ -24,6 +25,7 @@ final class MessageResponse
             'name'       => $this->name,
             'message'    => $this->message,
             'created_at' => $this->createdAt,
+            'read_at'    => $this->readAt,
         ];
     }
 }

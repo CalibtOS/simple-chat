@@ -2,7 +2,7 @@
 ### Built through the *simple-chat* project · Written for absolute beginners
 
 ---
-mailtrap token : 376788a03ec27f1e31ae19edec02e757
+
 > **How to use this document**
 > Read it top-to-bottom the first time. After that, use the Table of Contents to jump back to any concept you want to revisit. Every term is explained when it first appears. Diagrams use plain text so they render in any Markdown viewer (VS Code, GitHub, Obsidian, etc.).
 
@@ -1085,7 +1085,7 @@ PasswordResetService::requestReset($email)
         │     UserRepository::setResetToken($userId, $token, $expiry)
         │         → UPDATE users SET reset_token=?, reset_token_expires=? WHERE id=?
         │     Mailer::send($email, "Reset your password", $resetUrl)
-        │         → Writes to app.log (on XAMPP, no real email server)
+        │         → PHPMailer connects to Zoho SMTP → email delivered to recipient
         │
         └── Whether user found or not:
               json_response(["message" => "If that email is registered..."])
@@ -1131,6 +1131,110 @@ json_response(["message" => "Password updated. You can now log in."])
 reset-password.js redirects to login.html after 2.5 seconds
 ```
 
+### How Mailer.php Sends Emails — SMTP
+
+When `Mailer::send()` is called, it doesn't use PHP's built-in `mail()` function. It uses **PHPMailer** — a library that speaks the SMTP protocol directly.
+
+**What is SMTP?**
+
+SMTP (Simple Mail Transfer Protocol) is the language email servers use to talk to each other. It is a text-based dialogue over a TCP connection:
+
+```
+Our server → Zoho: "Hello, I want to send an email"
+Zoho:              "Who are you?"
+Our server → Zoho: "mahmoud.gabal@calibtos.com + password"
+Zoho:              "Authenticated ✓"
+Our server → Zoho: "FROM: mahmoud.gabal@calibtos.com"
+Our server → Zoho: "TO: ferhat@calibtos.com"
+Our server → Zoho: "SUBJECT: Reset your Chatty password"
+Our server → Zoho: "...body..."
+Zoho:              "Message accepted. Delivering."
+```
+
+Every email you've ever sent went through a conversation like this — SMTP has worked this way since the 1980s.
+
+**How PHPMailer fits in:**
+
+PHPMailer hides all that SMTP dialogue behind simple PHP calls:
+
+```php
+$mail = new PHPMailer(true);
+$mail->isSMTP();
+$mail->Host     = 'smtppro.zoho.eu';
+$mail->Port     = 465;
+$mail->Username = 'mahmoud.gabal@calibtos.com';
+$mail->Password = '...';
+$mail->setFrom('mahmoud.gabal@calibtos.com', 'Chatty');
+$mail->addAddress($to);
+$mail->Subject  = 'Reset your Chatty password';
+$mail->Body     = 'Click this link...';
+$mail->send();   // ← PHPMailer handles the full SMTP dialogue internally
+```
+
+We downloaded PHPMailer manually (3 files: `PHPMailer.php`, `SMTP.php`, `Exception.php`) into `back-end/core/phpmailer/`.
+
+**The configuration chain:**
+
+Credentials are never hardcoded in the source. They flow like this:
+
+```
+config.local.php                       ← real credentials (NOT in Git)
+       │  (sets $smtpHost, $smtpPort, $smtpUser, $smtpPass...)
+       ▼
+config.php                             ← normalizes with getenv() fallback
+       │  $smtpHost = getenv('CHAT_SMTP_HOST') ?: ($smtpHost ?? 'sandbox...');
+       ▼
+global scope (PHP variables)           ← now available anywhere via global $smtpHost;
+       │
+       ▼
+Mailer::send()                         ← declares "global $smtpHost, $smtpPort..." to read them
+```
+
+The `getenv()` fallback means the same code works in both development (reads from `config.local.php`) and production (reads from server environment variables — no secrets in files).
+
+**The dev redirect:**
+
+During development you might not want to accidentally email real users while testing. The redirect sends all emails to your own inbox regardless of who the recipient is:
+
+```php
+// config.local.php — add this line during development:
+$smtpDevRedirect = 'mahmoud.gabal@calibtos.com';
+
+// Mailer.php reads it:
+if (!empty($smtpDevRedirect)) {
+    $to = $smtpDevRedirect;   // override — all mail goes here
+}
+```
+
+Remove that line (or leave it empty) when you're ready to send to real recipients.
+
+**Port and encryption:**
+
+| Port | Encryption | What happens |
+|------|-----------|-------------|
+| `587` | STARTTLS | Connects plain, then upgrades to encrypted mid-connection |
+| `465` | SMTPS (SSL) | Encrypted from the very first byte |
+
+We use port 465 (Zoho's SSL port). PHPMailer picks the right mode automatically:
+
+```php
+$mail->SMTPSecure = $smtpPort === 465
+    ? PHPMailer::ENCRYPTION_SMTPS      // ← SSL, port 465
+    : PHPMailer::ENCRYPTION_STARTTLS;  // ← STARTTLS, port 587
+```
+
+**Character encoding:**
+
+Email bodies can contain special characters — em dashes, accented letters, Arabic script. Without declaring the encoding, the mail server guesses wrong and characters like `—` arrive as `â`.
+
+```php
+$mail->CharSet = PHPMailer::CHARSET_UTF8;
+```
+
+This tells the SMTP server "the body is UTF-8" and the receiving mail client renders it correctly.
+
+---
+
 ### Security Properties of This Design
 
 | Property | How we achieve it |
@@ -1143,14 +1247,16 @@ reset-password.js redirects to login.html after 2.5 seconds
 
 ### Output Buffering — The PHP Warning Problem
 
-On XAMPP with `display_errors = On` in `php.ini`, when `mail()` fails (Mercury not running), PHP prints a warning directly to the HTTP response body:
+On XAMPP, `display_errors = On` is set in `php.ini` by default (useful for development — errors appear on screen). The problem: if PHP produces any warning before your JSON response, it gets mixed into the response body:
 
 ```
-Warning: mail(): Failed to connect to mailserver...
+Warning: Some PHP notice about something...
 {"message":"If that email..."}
 ```
 
 The browser receives this mixed content. `JSON.parse()` fails on it → `data` is `null`. Calling `data.message` → TypeError.
+
+This was the original bug when the password-reset endpoint was returning `null` instead of the response object. We discovered it because `forgot-password.js` was crashing with *"Cannot read properties of null (reading 'message')"*.
 
 **Fix:** Output buffering in `index.php`:
 ```php
@@ -1627,6 +1733,7 @@ Browser: PATCH /simple-chat/api/settings
 | **Nullable** | A database column that allows NULL (absent value) |
 | **ob_start()** | PHP output buffering — captures all output into memory instead of sending to client |
 | **ORM** | Object-Relational Mapper — a library that writes SQL for you (we did it manually) |
+| **PHPMailer** | A PHP library that handles the SMTP dialogue for you, so sending email is just a few method calls |
 | **Pipeline** | A sequence of middleware that a request passes through in order |
 | **Prepared Statement** | A parameterized SQL query that separates structure from data, preventing SQL injection |
 | **Primary Key** | A unique identifier for each row in a database table, usually `id` |
@@ -1635,6 +1742,9 @@ Browser: PATCH /simple-chat/api/settings
 | **Router** | Code that maps incoming URL + method to the right controller function |
 | **Salt** | Random data added to a password before hashing so identical passwords produce different hashes |
 | **Server** | The program that listens for and responds to requests |
+| **SMTP** | Simple Mail Transfer Protocol — the standard text-based protocol email servers use to deliver messages to each other |
+| **SMTPS** | SMTP over SSL — encrypted from the first byte, used on port 465 |
+| **STARTTLS** | An upgrade mechanism that starts a plain connection then switches it to encrypted, used on port 587 |
 | **Service** | The business logic layer in MVC — validates rules, orchestrates repositories |
 | **Session** | Server-side storage associated with a browser via a cookie, used to remember logged-in users |
 | **SQL** | Structured Query Language — the language for querying relational databases |
@@ -1651,4 +1761,4 @@ Browser: PATCH /simple-chat/api/settings
 ---
 
 *Document generated from the simple-chat project. Last updated: April 2026.*
-*Covers: MVC architecture, REST API design, PHP sessions, SQL, password security, token-based flows, TOTP 2FA, middleware, repository pattern, dependency injection.*
+*Covers: MVC architecture, REST API design, PHP sessions, SQL, password security, token-based flows, SMTP email delivery (PHPMailer + Zoho), TOTP 2FA, middleware, repository pattern, dependency injection.*

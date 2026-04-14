@@ -54,13 +54,45 @@ final class MessageService
     }
 
     /**
-     * Return all messages in a conversation as MessageResponse DTOs.
+     * Return a page of messages, newest-last, with a has_more flag.
+     *
+     * $beforeId = 0  → latest page (most recent $limit messages)
+     * $beforeId > 0  → the page of messages older than that ID ("load more")
+     *
+     * @return array{messages: MessageResponse[], has_more: bool}
+     */
+    public function getPage(int $conversationId, int $limit, int $beforeId = 0): array
+    {
+        return $this->messages->getPage($conversationId, $limit, $beforeId);
+    }
+
+    /**
+     * Return all messages newer than $afterId (used for polling).
      *
      * @return MessageResponse[]
      */
-    public function getMessages(int $conversationId): array
+    public function getNewMessages(int $conversationId, int $afterId): array
     {
-        return $this->messages->getByConversation($conversationId);
+        return $this->messages->getAfter($conversationId, $afterId);
+    }
+
+    /**
+     * Mark all unread messages from other users as read for the current user.
+     * Called whenever the recipient fetches a conversation.
+     */
+    public function markAsRead(int $conversationId, int $readerUserId): void
+    {
+        $this->messages->markAsRead($conversationId, $readerUserId);
+    }
+
+    /**
+     * Return the highest message ID sent by the current user that has been
+     * read by the other party.  Included in every poll response so the sender
+     * can update tick colours without re-fetching the full message list.
+     */
+    public function getReadThrough(int $conversationId, int $senderUserId): ?int
+    {
+        return $this->messages->getReadThrough($conversationId, $senderUserId);
     }
 
     /**

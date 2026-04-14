@@ -17,6 +17,8 @@ final class UserResponse
         public readonly ?int    $conversationId,
         public readonly ?string $lastMessage,
         public readonly ?string $lastMessageAt,
+        public readonly bool    $isOnline,
+        public readonly ?string $lastSeenAt,
     ) {}
 
     /** @return array<string, mixed> */
@@ -28,6 +30,8 @@ final class UserResponse
             'conversation_id' => $this->conversationId,
             'last_message'    => $this->lastMessage,
             'last_message_at' => $this->lastMessageAt,
+            'is_online'       => $this->isOnline,
+            'last_seen_at'    => $this->lastSeenAt,
         ];
     }
 }

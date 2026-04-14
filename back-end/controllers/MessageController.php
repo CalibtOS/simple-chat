@@ -46,12 +46,58 @@ final class MessageController
             json_response(['error' => 'Forbidden'], 403);
         }
 
-        $messages = $this->service->getMessages($conversationId);
+        // Mark messages from other users as read — this is what turns the
+        // sender's ticks blue.  Only touches rows with read_at IS NULL so
+        // it's cheap to call on every fetch (no-op when nothing is unread).
+        $this->service->markAsRead($conversationId, $user->id);
 
-        json_response(array_map(
-            fn(MessageResponse $m) => $m->toArray(),
-            $messages
-        ));
+        // Pagination parameters from the query string.
+        // after_id  → polling: "give me only messages newer than this ID"
+        // before_id → load-more: "give me the page of messages older than this ID"
+        // Neither   → initial load: "give me the latest page"
+        $afterId  = (int) ($request->query['after_id']  ?? 0);
+        $beforeId = (int) ($request->query['before_id'] ?? 0);
+        $limit    = 20;
+
+        // read_through: the highest ID of the *current user's own* messages
+        // that the other party has already read.  The client uses this to
+        // colour existing tick marks blue without re-fetching every message.
+        $readThrough = $this->service->getReadThrough($conversationId, $user->id);
+
+        if ($afterId > 0) {
+            // Polling path — return only new messages, no has_more needed.
+            $newMessages = $this->service->getNewMessages($conversationId, $afterId);
+            app_log('info', 'messages_index', [
+                'user_id' => $user->id,
+                'conversation_id' => $conversationId,
+                'mode' => 'after',
+                'after_id' => $afterId,
+                'count' => count($newMessages),
+            ]);
+            json_response([
+                'conversation_id' => $conversationId,
+                'messages'     => array_map(fn(MessageResponse $m) => $m->toArray(), $newMessages),
+                'has_more'     => false,
+                'read_through' => $readThrough,
+            ]);
+        } else {
+            // Initial load or "load more" — return a page with a has_more flag.
+            $page = $this->service->getPage($conversationId, $limit, $beforeId);
+            app_log('info', 'messages_index', [
+                'user_id' => $user->id,
+                'conversation_id' => $conversationId,
+                'mode' => $beforeId > 0 ? 'before' : 'initial',
+                'before_id' => $beforeId,
+                'count' => count($page['messages']),
+                'has_more' => (bool) $page['has_more'],
+            ]);
+            json_response([
+                'conversation_id' => $conversationId,
+                'messages'     => array_map(fn(MessageResponse $m) => $m->toArray(), $page['messages']),
+                'has_more'     => $page['has_more'],
+                'read_through' => $readThrough,
+            ]);
+        }
     }
 
     // -------------------------------------------------------------------------
